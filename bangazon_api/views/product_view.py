@@ -170,10 +170,11 @@ class ProductView(ViewSet):
         min_price = request.query_params.get('min_price', None)
 
 
-        if number_sold:
+        if number_sold is not None:
             products = products.annotate(
-                order_count=Count('orders')
-            ).filter(order_count__lt=number_sold)
+                order_count=Count('orders', filter=Q(orders_payment_type=None))
+                ).filter(order_count_gt=number_sold)
+                                 
 
         if order is not None:
             order_filter = f'-{order}' if direction == 'desc' else order
@@ -260,11 +261,12 @@ class ProductView(ViewSet):
             product = Product.objects.get(pk=pk)
             order = Order.objects.get(
                 user=request.auth.user, completed_on=None)
+            order.products.remove(product)
             return Response(None, status=status.HTTP_204_NO_CONTENT)
         except Product.DoesNotExist as ex:
-            return Response({'message': ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'Product does not exist': ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
         except Order.DoesNotExist as ex:
-            return Response({'message': ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'Order does not exist': ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
 
     @swagger_auto_schema(
         method='DELETE',
